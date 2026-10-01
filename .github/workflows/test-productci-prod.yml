@@ -1,0 +1,103 @@
+name: Product CI Production Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check server.js syntax
+        run: node --check server.js
+
+      - name: Start MongoDB and Product API
+        run: docker compose up -d --build
+
+      - name: Check Docker Compose services
+        run: docker compose ps
+
+      - name: Wait for Product API
+        run: |
+          for i in {1..30}; do
+            if curl --fail http://localhost:3000/health; then
+              echo "Product API is healthy"
+              exit 0
+            fi
+
+            echo "Waiting for Product API..."
+            sleep 2
+          done
+
+          echo "Product API did not become healthy"
+          docker compose logs
+          exit 1
+
+      - name: Test CREATE product
+        run: |
+          curl --fail --request POST \
+            --header "Content-Type: application/json" \
+            --data '{"pid":1001,"pname":"CI Laptop","price":15000000,"quantity":10}' \
+            http://localhost:3000/api/products
+
+      - name: Test READ products
+        run: |
+          curl --fail \
+            http://localhost:3000/api/products
+
+      - name: Test READ product by pid
+        run: |
+          curl --fail \
+            http://localhost:3000/api/products/1001
+
+      - name: Test UPDATE product
+        run: |
+          curl --fail --request PUT \
+            --header "Content-Type: application/json" \
+            --data '{"pname":"CI Laptop Updated","price":16000000,"quantity":8}' \
+            http://localhost:3000/api/products/1001
+
+      - name: Verify UPDATE product
+        run: |
+          curl --fail \
+            http://localhost:3000/api/products/1001
+
+      - name: Test DELETE product
+        run: |
+          curl --fail --request DELETE \
+            http://localhost:3000/api/products/1001
+
+      - name: Verify DELETE product
+        run: |
+          if curl --silent --show-error --fail \
+            http://localhost:3000/api/products/1001; then
+            echo "ERROR: Product still exists after DELETE"
+            exit 1
+          else
+            echo "DELETE verified: product no longer exists"
+          fi
+
+      - name: Show Docker logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down -v
