@@ -1,0 +1,47 @@
+name: Deploy Product API to Local Docker
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Local Docker Engine
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Pull latest Docker Hub images
+        run: docker compose -f docker-compose-prod.yaml pull
+
+      - name: Deploy containers
+        run: docker compose -f docker-compose-prod.yaml up -d --wait --wait-timeout 120
+
+      - name: Check container health
+        shell: bash
+        run: |
+          for c in nammongodb-prod product-api-prod; do
+            status=$(docker inspect --format '{{.State.Health.Status}}' "$c")
+            echo "$c: $status"
+
+            if [ "$status" != "healthy" ]; then
+              echo "ERROR: $c is not healthy"
+              docker compose -f docker-compose-prod.yaml ps
+              docker compose -f docker-compose-prod.yaml logs
+              exit 1
+            fi
+          done
+
+      - name: Test Product API health
+        shell: bash
+        run: curl --fail http://localhost:3001/health
+
+      - name: Show deployment status
+        run: docker compose -f docker-compose-prod.yaml ps
