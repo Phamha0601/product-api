@@ -27,7 +27,7 @@ jobs:
       - name: Deploy containers
         run: docker compose -f docker-compose-prod.yaml up -d --wait --wait-timeout 120
 
-            - name: Check container health
+      - name: Check container health
         shell: powershell
         run: |
           $containers = @("nammongodb-prod", "product-api-prod")
@@ -45,8 +45,9 @@ jobs:
           }
 
       - name: Test Product API health
-        shell: bash
-        run: curl --fail http://localhost:3001/health
+        shell: powershell
+        run: |
+          curl.exe --fail http://localhost:3001/health
 
       - name: Show deployment status
         run: docker compose -f docker-compose-prod.yaml ps
