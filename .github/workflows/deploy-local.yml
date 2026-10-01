@@ -27,20 +27,22 @@ jobs:
       - name: Deploy containers
         run: docker compose -f docker-compose-prod.yaml up -d --wait --wait-timeout 120
 
-      - name: Check container health
-        shell: bash
+            - name: Check container health
+        shell: powershell
         run: |
-          for c in nammongodb-prod product-api-prod; do
-            status=$(docker inspect --format '{{.State.Health.Status}}' "$c")
-            echo "$c: $status"
+          $containers = @("nammongodb-prod", "product-api-prod")
 
-            if [ "$status" != "healthy" ]; then
-              echo "ERROR: $c is not healthy"
+          foreach ($c in $containers) {
+            $status = docker inspect --format '{{.State.Health.Status}}' $c
+            Write-Host "$c : $status"
+
+            if ($status -ne "healthy") {
+              Write-Host "ERROR: $c is not healthy"
               docker compose -f docker-compose-prod.yaml ps
               docker compose -f docker-compose-prod.yaml logs
               exit 1
-            fi
-          done
+            }
+          }
 
       - name: Test Product API health
         shell: bash
