@@ -1,4 +1,4 @@
-name: Test Product API
+name: Test Product api
 
 on:
   push:
