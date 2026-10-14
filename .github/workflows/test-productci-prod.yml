@@ -1,4 +1,4 @@
-name: Product CI Production Testt
+name: Product CI Production TesT
 
 on:
   push:
