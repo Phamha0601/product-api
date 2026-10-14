@@ -10,7 +10,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(product);
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(409).json({ error: 'pid đã tồn tại' });
+      return res.status(409).json({ error: 'pid đã tồn tạiii' });
     }
     res.status(400).json({ error: err.message });
   }
